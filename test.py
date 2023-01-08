@@ -105,60 +105,60 @@ def experimentsParallel(numTries=1, steps=200, numArms=50, numProposed=10, numLa
                 errsNTS[k, j] = errNTS
             print(f"NeuralThompson: {errNTS}")
 
-        #general net
-        net = nts.FullyConnectedNeuralNetwork(numArms, width, numLayers, True, mse, msePrime)
+            #general net
+            net = nts.FullyConnectedNeuralNetwork(numArms, width, numLayers, True, mse, msePrime)
 
-        errNN = 0
-        bandit.round_success = []
-        bandit.round_failure = []
-        for j in range(steps):
-            predicts = np.apply_along_axis(net.predict, 0, items).reshape(numArms)
-            armsPlayed = (-predicts).argsort()[:numProposed]
-            rew = bandit.get_stochastic_reward(armsPlayed)
-            obs = bandit.get_observation()
-            for fail in obs["round_failure"]:
-                net.updateParams(items[fail], np.array([[0]]), 0.01)
-            for success in obs["round_success"]:
-                net.updateParams(items[success], np.array([[1]]), 0.01)
-            optimal_reward = bandit.get_optimal_reward()
-            #regret is optimal against expected reward
-            rew = bandit.get_expected_reward(armsPlayed)
-            errNN += optimal_reward-rew
-            errsNN[k, j] = errNN
+            errNN = 0
+            bandit.round_success = []
+            bandit.round_failure = []
+            for j in range(steps):
+                predicts = np.apply_along_axis(net.predict, 0, items).reshape(numArms)
+                armsPlayed = (-predicts).argsort()[:numProposed]
+                rew = bandit.get_stochastic_reward(armsPlayed)
+                obs = bandit.get_observation()
+                for fail in obs["round_failure"]:
+                    net.updateParams(items[fail], np.array([[0]]), 0.01)
+                for success in obs["round_success"]:
+                    net.updateParams(items[success], np.array([[1]]), 0.01)
+                optimal_reward = bandit.get_optimal_reward()
+                #regret is optimal against expected reward
+                rew = bandit.get_expected_reward(armsPlayed)
+                errNN += optimal_reward-rew
+                errsNN[k, j] = errNN
 
-        print(f"NeuralNetwork {errNN}")
+            print(f"NeuralNetwork {errNN}")
 
 
-        #generalNet more training
-        netTraining = nts.FullyConnectedNeuralNetwork(numArms, width, numLayers, True, mse, msePrime)
+            #generalNet more training
+            netTraining = nts.FullyConnectedNeuralNetwork(numArms, width, numLayers, True, mse, msePrime)
 
-        errNNT = 0
-        bandit.round_success = []
-        bandit.round_failure = []
-        for j in range(steps):
-            predicts = np.apply_along_axis(netTraining.predict, 0, items).reshape(numArms)
-            armsPlayed = (-predicts).argsort()[:numProposed]
-            rew = bandit.get_stochastic_reward(armsPlayed)
-            obs = bandit.get_observation()
-            if len(obs["round_success"]) > 0:
-                obsList = np.array([[success, 1] for success in obs["round_success"]])
-                if len(obs["round_failure"]) > 0:
-                    obsList = np.concatenate(
-                        (
-                            np.array([[fail, 0] for fail in obs["round_failure"]]),
-                            obsList
-                        ), 0)
-            else:
-                obsList = np.array([[fail, 0] for fail in obs["round_failure"]])
-            netTraining.history = np.concatenate((netTraining.history, obsList), 0)[-1000:]
-            for arm, rew in netTraining.history:
-                netTraining.updateParams(items[arm], np.array([[rew]]), 0.01)
-            optimal_reward = bandit.get_optimal_reward()
-            rew = bandit.get_expected_reward(armsPlayed)
-            errNNT += optimal_reward - rew
-            errsNNT[k, j] = errNNT
+            errNNT = 0
+            bandit.round_success = []
+            bandit.round_failure = []
+            for j in range(steps):
+                predicts = np.apply_along_axis(netTraining.predict, 0, items).reshape(numArms)
+                armsPlayed = (-predicts).argsort()[:numProposed]
+                rew = bandit.get_stochastic_reward(armsPlayed)
+                obs = bandit.get_observation()
+                if len(obs["round_success"]) > 0:
+                    obsList = np.array([[success, 1] for success in obs["round_success"]])
+                    if len(obs["round_failure"]) > 0:
+                        obsList = np.concatenate(
+                            (
+                                np.array([[fail, 0] for fail in obs["round_failure"]]),
+                                obsList
+                            ), 0)
+                else:
+                    obsList = np.array([[fail, 0] for fail in obs["round_failure"]])
+                netTraining.history = np.concatenate((netTraining.history, obsList), 0)[-1000:]
+                for arm, rew in netTraining.history:
+                    netTraining.updateParams(items[arm], np.array([[rew]]), 0.01)
+                optimal_reward = bandit.get_optimal_reward()
+                rew = bandit.get_expected_reward(armsPlayed)
+                errNNT += optimal_reward - rew
+                errsNNT[k, j] = errNNT
 
-        print(f"NeuralNetwork better Training {errNNT}")
+            print(f"NeuralNetwork better Training {errNNT}")
 
         #stuff from given code
         agent = CascadingBanditTS(numArms, numProposed, a0=true_a0, b0=true_b0)
@@ -173,7 +173,7 @@ def experimentsParallel(numTries=1, steps=200, numArms=50, numProposed=10, numLa
             cum_regret = 0
             for i in range(steps):
                 observation = bandit.get_observation()
-                action = agent.pick_action(observation)
+                action = agents[j].pick_action(observation)
 
                 # Compute useful stuff for regret calculations
                 optimal_reward = bandit.get_optimal_reward()
@@ -181,7 +181,7 @@ def experimentsParallel(numTries=1, steps=200, numArms=50, numProposed=10, numLa
                 reward = bandit.get_stochastic_reward(action)
 
                 # Update the agent using realized rewards + bandit learing
-                agent.update_observation(observation, action, reward)
+                agents[j].update_observation(observation, action, reward)
 
                 # Log whatever we need for the plots we will want to use.
                 instant_regret = optimal_reward - expected_reward
@@ -413,19 +413,21 @@ def combineParaRes(res, numTries, steps, numAgents, ntss):
     if ntss:
         errsNTSS = np.zeros((numTries, steps))
         errsNTS = np.zeros((numTries, steps))
+        errsNN = np.zeros((numTries, steps))
+        errsNNT = np.zeros((numTries, steps))
     else:
         errsNTSS = None
         errsNTS = None
-    errsNN = np.zeros((numTries, steps))
-    errsNNT = np.zeros((numTries, steps))
+        errsNN = None
+        errsNNT = None
     errsBandits = np.zeros((numTries, numAgents, steps))
 
     for i, run in enumerate(res):
         if ntss:
             errsNTSS[i] = res[i]["neuralTS_structure"]
             errsNTS[i] = res[i]["neuralTS"]
-        errsNN[i] = res[i]["nn"]
-        errsNNT[i] = res[i]["nn_train"]
+            errsNN[i] = res[i]["nn"]
+            errsNNT[i] = res[i]["nn_train"]
         errsBandits[i] = res[i]["bandits"].reshape(numAgents, steps)
 
     return errsNTSS, errsNTS, errsNN, errsNNT, errsBandits
@@ -445,36 +447,36 @@ def fullExp(numTries=30, steps=200, numArms=50, numProposed=10, numLayers=1, wid
     errsNTSS, errsNTS, errsNN, errsNNT, errsBandits = combineParaRes(res, numTries, steps, len(bColors), ntss)
 
     plt.figure()
-
+    if ntss:
     # plot NTSS
-    mean = np.mean(errsNTSS, axis=0)
-    ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.2), 0, errsNTSS)
-    plt.plot(mean, label=f"NTS structure width {width}, layers {numLayers + 2}", color='b')
-    plt.fill_between(range(steps), ci[0,], ci[1,], color='b', alpha=.1)
+        mean = np.mean(errsNTSS, axis=0)
+        ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.05), 0, errsNTSS)
+        plt.plot(mean, label=f"NTS structure width {width}, layers {numLayers + 2}", color='b')
+        plt.fill_between(range(steps), ci[0,], ci[1,], color='b', alpha=.1)
 
-    # NTS
-    mean = np.mean(errsNTS, axis=0)
-    ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.2), 0, errsNTS)
-    plt.plot(mean, label=f"NTS width {width}, layers {numLayers + 2}", color='r')
-    plt.fill_between(range(steps), ci[0,], ci[1,], color='r', alpha=.1)
+        # NTS
+        mean = np.mean(errsNTS, axis=0)
+        ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.05), 0, errsNTS)
+        plt.plot(mean, label=f"NTS width {width}, layers {numLayers + 2}", color='r')
+        plt.fill_between(range(steps), ci[0,], ci[1,], color='r', alpha=.1)
 
-    # NN
-    mean = np.mean(errsNN, axis=0)
-    ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.2), 0, errsNN)
-    plt.plot(mean, label=f"NN width {width}, layers {numLayers + 2}", color='g')
-    plt.fill_between(range(steps), ci[0,], ci[1,], color='g', alpha=.1)
+        # NN
+        mean = np.mean(errsNN, axis=0)
+        ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.05), 0, errsNN)
+        plt.plot(mean, label=f"NN width {width}, layers {numLayers + 2}", color='g')
+        plt.fill_between(range(steps), ci[0,], ci[1,], color='g', alpha=.1)
 
-    # NN Training
-    mean = np.mean(errsNNT, axis=0)
-    ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.2), 0, errsNNT)
-    plt.plot(mean, label=f"NN longer train width {width}, layers {numLayers + 2}",
-             color='lightgreen')
-    plt.fill_between(range(steps), ci[0, ], ci[1, ], color='lightgreen', alpha=.1)
+        # NN Training
+        mean = np.mean(errsNNT, axis=0)
+        ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.05), 0, errsNNT)
+        plt.plot(mean, label=f"NN longer train width {width}, layers {numLayers + 2}",
+                color='lightgreen')
+        plt.fill_between(range(steps), ci[0, ], ci[1, ], color='lightgreen', alpha=.1)
 
     # given stuff
     for j in range(len(bColors)):
         mean = np.mean(errsBandits[:, j, :], axis=0)
-        ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.2), 0, errsBandits[:, j, :])
+        ci = np.apply_along_axis(lambda a: sms.DescrStatsW(a).tconfint_mean(0.05), 0, errsBandits[:, j, :])
         plt.plot(mean, label=f"{banditName[j]}", color=bColors[j])
         plt.fill_between(range(steps), ci[0, ], ci[1, ], color=bColors[j], alpha=.1)
 
@@ -484,7 +486,7 @@ def fullExp(numTries=30, steps=200, numArms=50, numProposed=10, numLayers=1, wid
     plt.title(f"Cascading Bandits with Optimal reward: {bandit.get_optimal_reward()}")
     plt.legend()
     plt.savefig(
-        f"experiments_{numTries}_{steps}_{numArms}_{numProposed}_{best_optimism}_{numLayers}_{width}_{numOps}_{lr}_{hist}_{true_a0}_{true_b0}_{time.strftime('%Y%m%d_%H%M%S')}}.svg",
+        f"experiments_{numTries}_{steps}_{numArms}_{numProposed}_{best_optimism}_{numLayers}_{width}_{numOps}_{lr}_{hist}_{true_a0}_{true_b0}_{time.strftime('%Y%m%d_%H%M%S')}.svg",
         format="svg")
 
     # create a binary pickle file
@@ -503,70 +505,70 @@ def fullExp(numTries=30, steps=200, numArms=50, numProposed=10, numLayers=1, wid
 
 if __name__ == "__main__":
 
-    numTries = 50
-    steps = 250
-    arms = 50
-    numProposed = 10
-    numLayer = 2
-    width = 10
-    optSteps = 200
-    lr = 5e-3
+    # numTries = 50
+    # steps = 250
+    # arms = 50
+    # numProposed = 10
+    # numLayer = 2
+    # width = 10
+    # optSteps = 200
+    # lr = 5e-3
 
-    fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr)
-
-    numTries = 50
-    steps = 250
-    arms = 50
-    numProposed = 10
-    numLayer = 1
-    width = 25
-    optSteps = 200
-    lr = 5e-3
-
-    fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr)
-
-    numTries = 50
-    steps = 250
-    arms = 50
-    numProposed = 10
-    numLayer = 3
-    width = 6
-    optSteps = 100
-    lr = 1e-3
-
-    fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr, 300)
-
-    numTries = 50
-    steps = 250
-    arms = 50
-    numProposed = 10
-    numLayer = 2
-    width = 10
-    optSteps = 100
-
-
-    fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr, 300)
+    # fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr)
 
     numTries = 50
     steps = 250
     arms = 50
     numProposed = 10
     numLayer = 1
-    width = 25
-    optSteps = 100
+    width = 24
+    optSteps = 200
     lr = 5e-3
 
-    fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr, 300)
+    fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr)
 
-    numTries = 50
-    steps = 250
-    arms = 50
-    numProposed = 10
-    numLayer = 3
-    width = 6
-    optSteps = 50
+    # numTries = 50
+    # steps = 250
+    # arms = 50
+    # numProposed = 10
+    # numLayer = 3
+    # width = 6
+    # optSteps = 100
+    # lr = 1e-3
 
-    fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr, 300)
+    # fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr, 300)
+
+    # numTries = 50
+    # steps = 250
+    # arms = 50
+    # numProposed = 10
+    # numLayer = 2
+    # width = 10
+    # optSteps = 100
+
+
+    # fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr, 300)
+
+    # numTries = 50
+    # steps = 250
+    # arms = 50
+    # numProposed = 10
+    # numLayer = 1
+    # width = 24
+    # optSteps = 100
+    # lr = 5e-3
+
+    # fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr, 300)
+
+    # numTries = 50
+    # steps = 250
+    # arms = 50
+    # numProposed = 10
+    # numLayer = 3
+    # width = 6
+    # optSteps = 50
+
+    # fullExp(numTries, steps, arms, numProposed, numLayer, width, True, optSteps, lr, 300)
 
 
     #no neural thompson anymore
@@ -580,15 +582,15 @@ if __name__ == "__main__":
 
 
     fullExp(numTries, steps, arms, numProposed, numLayer, width, False)
-    numTries = 50
-    steps = 10000
-    arms = 50
-    numProposed = 10
-    numLayer = 1
-    width = 25
+    # numTries = 50
+    # steps = 10000
+    # arms = 50
+    # numProposed = 10
+    # numLayer = 1
+    # width = 25
 
 
-    fullExp(numTries, steps, arms, numProposed, numLayer, width, False)
+    # fullExp(numTries, steps, arms, numProposed, numLayer, width, False)
 
     #no neural thompson anymore
 
@@ -599,14 +601,13 @@ if __name__ == "__main__":
     numLayer = 3
     width = 6
 
+    fullExp(numTries, steps, arms, numProposed, numLayer, width, False, 100, 1e-2, 100, 0.05)
+    # numTries = 50
+    # steps = 10000
+    # arms = 1000
+    # numProposed = 100
+    # numLayer = 1
+    # width = 25
 
-    fullExp(numTries, steps, arms, numProposed, numLayer, width, False)
-    numTries = 50
-    steps = 10000
-    arms = 1000
-    numProposed = 100
-    numLayer = 1
-    width = 25
 
-
-    fullExp(numTries, steps, arms, numProposed, numLayer, width, False)
+    # fullExp(numTries, steps, arms, numProposed, numLayer, width, False)
